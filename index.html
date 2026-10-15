@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1116">
+<title>Hockey Stats Tracker</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0e1116; --card:#171d27; --card2:#1f2633; --line:#2b3342;
+    --text:#f2f5f9; --muted:#9aa4b2; --accent:#2f81f7; --danger:#e5534b; --ok:#3fb950;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text);
+    touch-action:manipulation; /* no double-tap zoom delay */
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{ max-width:640px; margin:0 auto; padding:12px 12px 40px; }
+  h1{ font-size:22px; margin:8px 0 12px; }
+  h2{ font-size:18px; margin:16px 0 8px; }
+  p{ color:var(--muted); font-size:15px; line-height:1.45; }
+  button{
+    touch-action:manipulation; min-height:56px; font-size:17px; font-weight:600;
+    border:1px solid var(--line); border-radius:12px; background:var(--card2); color:var(--text);
+    padding:10px 14px; cursor:pointer;
+  }
+  button:active{ transform:scale(.97); }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.danger{ background:transparent; border-color:var(--danger); color:var(--danger); }
+  button.ghost{ background:transparent; }
+  input,select{
+    width:100%; min-height:56px; font-size:17px; border-radius:12px;
+    border:1px solid var(--line); background:var(--card); color:var(--text);
+    padding:10px 14px; margin:4px 0;
+  }
+  label{ font-size:14px; color:var(--muted); display:block; margin-top:10px; }
+  .row{ display:flex; gap:10px; align-items:center; }
+  .row > *{ flex:1; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin:10px 0; }
+  .hidden{ display:none !important; }
+  .muted{ color:var(--muted); }
+  .empty{ text-align:center; padding:28px 16px; color:var(--muted); }
+  .list-item{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; margin:8px 0; min-height:64px;
+  }
+  .list-item .grow{ flex:1; }
+  .list-item .title{ font-size:17px; font-weight:600; }
+  .list-item .sub{ font-size:14px; color:var(--muted); margin-top:2px; }
+  .icon-btn{ flex:0 0 56px; min-width:56px; min-height:56px; font-size:20px; }
+  /* tabs */
+  .tabs{ display:flex; gap:8px; margin:12px 0; }
+  .tabs button{ flex:1; }
+  .tabs button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* event grid (live tracking) */
+  .evgrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; }
+  .evbtn{ min-height:84px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:15px; }
+  .evbtn .em{ font-size:30px; }
+  /* period segmented */
+  .seg{ display:flex; gap:8px; margin:8px 0; }
+  .seg button{ flex:1; }
+  .seg button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* score */
+  .score{ font-size:34px; font-weight:800; text-align:center; margin:4px 0; letter-spacing:.5px; }
+  /* log */
+  .logrow{ display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line); font-size:15px; }
+  .logrow .grow{ flex:1; }
+  .logrow .del{ flex:0 0 44px; min-width:44px; min-height:44px; font-size:16px; }
+  /* tables */
+  .tscroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ border-collapse:collapse; width:100%; font-size:14px; }
+  th,td{ border:1px solid var(--line); padding:8px 6px; text-align:center; white-space:nowrap; }
+  th{ background:var(--card2); font-size:13px; }
+  td.left, th.left{ text-align:left; position:sticky; left:0; background:var(--card); }
+  th.left{ background:var(--card2); }
+  /* player picker overlay */
+  #picker{
+    position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.92);
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display:flex; flex-direction:column;
+  }
+  #picker .phead{ padding:14px 16px 6px; text-align:center; }
+  #picker .phead h2{ margin:0 0 4px; font-size:20px; }
+  #pickerGrid{
+    flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr));
+    gap:10px; padding:12px 16px; align-content:start;
+  }
+  .pbtn{ min-height:92px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .pbtn .num{ font-size:32px; font-weight:800; line-height:1.1; }
+  .pbtn .nm{ font-size:12px; color:var(--muted); margin-top:2px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #pickerFoot{ padding:12px 16px 20px; display:flex; gap:10px; }
+  #pickerFoot button{ flex:1; }
+  /* roster rows */
+  .prow{ display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line); }
+  .prow .num{ font-size:22px; font-weight:800; min-width:44px; text-align:center; background:var(--card2); border-radius:10px; padding:8px 0; }
+  .prow .grow{ flex:1; font-size:16px; }
+  .prow .mini{ flex:0 0 44px; min-width:44px; min-height:44px; font-size:15px; }
+  /* event checklist */
+  .chk{ display:flex; align-items:center; gap:12px; padding:6px 4px; border-bottom:1px solid var(--line); min-height:60px; }
+  .chk input[type=checkbox]{ width:32px; height:32px; min-height:32px; margin:0; accent-color:var(--accent); flex:0 0 32px; }
+  .chk .dot{ width:18px; height:18px; border-radius:50%; flex:0 0 18px; }
+  .chk .lbl{ flex:1; font-size:16px; }
+  .chk .em{ font-size:22px; }
+  .topbar{ display:flex; align-items:center; gap:10px; margin:6px 0 4px; }
+  .topbar h1{ flex:1; margin:0; }
+  .backbtn{ flex:0 0 56px; min-width:56px; }
+</style>
+</head>
+<body>
+
+<!-- ============ TEAMS LIST ============ -->
+<section id="v-teams" class="wrap">
+  <h1>🏒 Hockey Stats Tracker</h1>
+  <div id="teamsList"></div>
+  <div class="card">
+    <label for="newTeamName">New team</label>
+    <div class="row">
+      <input id="newTeamName" placeholder="Team name" maxlength="40" autocomplete="off">
+      <button id="addTeamBtn" class="primary" style="flex:0 0 120px">Add</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TEAM VIEW ============ -->
+<section id="v-team" class="wrap hidden">
+  <div class="topbar">
+    <button class="backbtn ghost" id="teamBack">‹</button>
+    <h1 id="teamTitle"></h1>
+    <button class="icon-btn ghost" id="renameTeamBtn" title="Rename team">✏️</button>
+  </div>
+  <div class="tabs">
+    <button id="tabRoster">Roster</button>
+    <button id="tabEvents">Events</button>
+    <button id="tabGames">Games</button>
+  </div>
+
+  <!-- Roster tab -->
+  <div id="paneRoster">
+    <div id="rosterList"></div>
+    <div class="card">
+      <label>Add player</label>
+      <div class="row">
+        <input id="newPNum" inputmode="numeric" pattern="[0-9]*" placeholder="#" maxlength="3" style="flex:0 0 90px" autocomplete="off">
+        <input id="newPName" placeholder="Name" maxlength="40" autocomplete="off">
+        <button id="addPlayerBtn" class="primary" style="flex:0 0 100px">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Events config tab -->
+  <div id="paneEvents" class="hidden">
+    <p>Tick the events this team tracks. Only ticked events appear as big buttons during a live game. Every team can have its own set.</p>
+    <div id="eventChecklist"></div>
+  </div>
+
+  <!-- Games tab -->
+  <div id="paneGames" class="hidden">
+    <div id="gamesList"></div>
+    <div class="card">
+      <label for="newOpp">New game</label>
+      <input id="newOpp" placeholder="Opponent name" maxlength="40" autocomplete="off">
+      <label for="newGameDate">Date</label>
+      <input id="newGameDate" type="date">
+      <div style="height:10px"></div>
+      <button id="newGameBtn" class="primary" style="width:100%">Start new game</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE GAME ============ -->
+<section id="v-live" class="wrap hidden">
+  <div class="topbar">
+    <button class="backbtn ghost" id="liveBack">‹</button>
+    <h1 id="liveTitle"></h1>
+  </div>
+  <div class="score" id="liveScore"></div>
+  <div class="seg" id="periodSeg">
+    <button data-p="1">1st</button><button data-p="2">2nd</button>
+    <button data-p="3">3rd</button><button data-p="OT">OT</button>
+  </div>
+  <div class="evgrid" id="evGrid"></div>
+  <button id="undoBtn" class="danger" style="width:100%">↩ Undo last event</button>
+  <h2>Running totals</h2>
+  <div class="tscroll card" style="padding:6px" id="liveTotals"></div>
+  <h2>Event log</h2>
+  <div id="liveLog"></div>
+  <div style="height:16px"></div>
+  <button id="endGameBtn" class="primary" style="width:100%">End game → report</button>
+</section>
+
+<!-- ============ GAME REPORT ============ -->
+<section id="v-report" class="wrap hidden">
+  <div class="topbar">
+    <button class="backbtn ghost" id="reportBack">‹</button>
+    <h1 id="reportTitle"></h1>
+  </div>
+  <div class="score" id="reportScore"></div>
+  <h2>Player stats</h2>
+  <div class="tscroll card" style="padding:6px" id="reportTable"></div>
+  <h2>Share with coaches</h2>
+  <button id="shareBtn" class="primary" style="width:100%;margin-bottom:10px">📤 Share summary…</button>
+  <button id="copyBtn" style="width:100%;margin-bottom:10px">📋 Copy summary</button>
+  <button id="csvBtn" style="width:100%">⬇️ Download CSV</button>
+</section>
+
+<!-- ============ PLAYER PICKER OVERLAY ============ -->
+<div id="picker" class="hidden">
+  <div class="phead">
+    <h2 id="pickerTitle">Pick player</h2>
+    <div class="muted" id="pickerSub"></div>
+  </div>
+  <div id="pickerGrid"></div>
+  <div id="pickerFoot">
+    <button id="pickerSkip" class="hidden">Skip</button>
+    <button id="pickerCancel" class="ghost">Cancel</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   Hockey Stats Tracker — single-file, offline-capable,
+   iPhone-first live game stat tracking.
+   All data lives in localStorage under a versioned key.
+   ========================================================= */
+
+var STORE_KEY = "hst.v1";
+
+/* ---- Built-in event catalog. Each team toggles which are active. ---- */
+var EVENT_CATALOG = [
+  { id:"goal",         label:"Goal",          emoji:"🥅", color:"#3fb950" },
+  { id:"assist",       label:"Assist",        emoji:"🅰️", color:"#39c5cf" },
+  { id:"shot_on",      label:"Shot on net",   emoji:"🎯", color:"#2f81f7" },
+  { id:"shot_missed",  label:"Missed shot",   emoji:"💨", color:"#8b949e" },
+  { id:"shot_blocked", label:"Blocked shot",  emoji:"🛡️", color:"#a371f7" },
+  { id:"save",         label:"Save",          emoji:"🧤", color:"#d29922" },
+  { id:"pass",         label:"Pass",          emoji:"➡️", color:"#bc8cff" },
+  { id:"penalty",      label:"Penalty",       emoji:"🚨", color:"#e5534b" },
+  { id:"faceoff_won",  label:"Faceoff won",   emoji:"✅", color:"#3fb950" },
+  { id:"faceoff_lost", label:"Faceoff lost",  emoji:"❎", color:"#8b949e" },
+  { id:"hit",          label:"Hit",           emoji:"💥", color:"#f778ba" },
+  { id:"takeaway",     label:"Takeaway",      emoji:"✋", color:"#2f81f7" },
+  { id:"giveaway",     label:"Giveaway",      emoji:"🎁", color:"#e5534b" }
+];
+function evDef(id){ for (var i=0;i<EVENT_CATALOG.length;i++) if (EVENT_CATALOG[i].id===id) return EVENT_CATALOG[i]; return null; }
+
+/* ---- State ---- */
+var state = { teams: [], games: [] };       // persisted
+var curTeamId = null;                        // selected team
+var teamTab = "roster";                      // roster | events | games
+var curGameId = null;                        // live game
+var livePeriod = 1;                          // 1|2|3|"OT"
+var pending = null;                          // {type} or {type:"goal", scorerId} during picker flow
+
+/* ---- Helpers ---- */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function $(id){ return document.getElementById(id); }
+function getTeam(id){ for (var i=0;i<state.teams.length;i++) if (state.teams[i].id===id) return state.teams[i]; return null; }
+function getGame(id){ for (var i=0;i<state.games.length;i++) if (state.games[i].id===id) return state.games[i]; return null; }
+function getPlayer(team, pid){ for (var i=0;i<team.roster.length;i++) if (team.roster[i].id===pid) return team.roster[i]; return null; }
+function playerLabel(team, pid){
+  var p = getPlayer(team, pid);
+  if (!p) return "?";
+  return "#" + p.number + (p.name ? " " + p.name : "");
+}
+function sortedRoster(team){
+  return team.roster.slice().sort(function(a,b){ return (parseInt(a.number,10)||0) - (parseInt(b.number,10)||0); });
+}
+function gameGoals(game){ return game.events.filter(function(e){ return e.type==="goal"; }).length; }
+function fmtTime(ts){ return new Date(ts).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }
+function fmtDate(iso){ try { return new Date(iso+"T12:00:00").toLocaleDateString([], {month:"short", day:"numeric", year:"numeric"}); } catch(e){ return iso; } }
+
+/* ---- Persistence ---- */
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){ /* storage full/blocked */ } }
+function load(){
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw){ var d = JSON.parse(raw); if (d && d.teams && d.games) state = d; }
+  } catch(e){ /* corrupted or unavailable: start empty */ }
+}
+
+/* ---- View switching ---- */
+var VIEWS = ["v-teams","v-team","v-live","v-report"];
+function show(name){
+  VIEWS.forEach(function(v){ $(v).classList.toggle("hidden", v!==name); });
+  window.scrollTo(0,0);
+}
+
+/* =========================================================
+   TEAMS LIST
+   ========================================================= */
+function renderTeams(){
+  var list = $("teamsList");
+  if (!state.teams.length){
+    list.innerHTML = '<div class="empty">No teams yet.<br>Create your first team below — then add its roster and pick which events to track.</div>';
+  } else {
+    list.innerHTML = state.teams.map(function(t){
+      var nGames = state.games.filter(function(g){ return g.teamId===t.id; }).length;
+      return '<button class="list-item" data-team="'+t.id+'">' +
+        '<span class="grow"><span class="title">'+esc(t.name)+'</span>' +
+        '<div class="sub">'+t.roster.length+' players · '+t.enabledEvents.length+' events · '+nGames+' games</div></span>' +
+        '<span>›</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll("[data-team]"), function(b){
+      b.addEventListener("click", function(){ openTeam(b.getAttribute("data-team")); });
+    });
+  }
+}
+
+function addTeam(){
+  var inp = $("newTeamName");
+  var name = inp.value.trim();
+  if (!name){ inp.focus(); return; }
+  state.teams.push({ id: uid(), name: name,
+    roster: [],
+    enabledEvents: EVENT_CATALOG.map(function(e){ return e.id; }) // all on by default
+  });
+  inp.value = "";
+  save(); renderTeams();
+}
+
+function openTeam(id){ curTeamId = id; teamTab = "roster"; renderTeam(); show("v-team"); }
+
+/* =========================================================
+   TEAM VIEW (Roster / Events / Games tabs)
+   ========================================================= */
+function renderTeam(){
+  var t = getTeam(curTeamId);
+  if (!t){ show("v-teams"); renderTeams(); return; }
+  $("teamTitle").textContent = t.name;
+  ["tabRoster","tabEvents","tabGames"].forEach(function(id){ $(id).classList.remove("on"); });
+  $("tabRoster").classList.toggle("on", teamTab==="roster");
+  $("tabEvents").classList.toggle("on", teamTab==="events");
+  $("tabGames").classList.toggle("on", teamTab==="games");
+  $("paneRoster").classList.toggle("hidden", teamTab!=="roster");
+  $("paneEvents").classList.toggle("hidden", teamTab!=="events");
+  $("paneGames").classList.toggle("hidden", teamTab!=="games");
+  if (teamTab==="roster") renderRoster(t);
+  if (teamTab==="events") renderEventConfig(t);
+  if (teamTab==="games") renderGames(t);
+}
+
+/* ---- Roster ---- */
+function renderRoster(t){
+  var list = $("rosterList");
+  var ros = sortedRoster(t);
+  if (!ros.length){
+    list.innerHTML = '<div class="empty">No players yet.<br>Add them by jersey number below — during games you tap the <b>number</b>, not the name, so it stays fast.</div>';
+  } else {
+    list.innerHTML = ros.map(function(p){
+      return '<div class="prow"><span class="num">'+esc(p.number)+'</span>' +
+        '<span class="grow">'+esc(p.name || "—")+'</span>' +
+        '<button class="mini ghost" data-edit="'+p.id+'" title="Edit">✏️</button>' +
+        '<button class="mini ghost" data-del="'+p.id+'" title="Delete">🗑️</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll("[data-edit]"), function(b){
+      b.addEventListener("click", function(){ editPlayer(t, b.getAttribute("data-edit")); });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll("[data-del]"), function(b){
+      b.addEventListener("click", function(){
+        var p = getPlayer(t, b.getAttribute("data-del"));
+        if (p && confirm("Remove #"+p.number+" "+(p.name||"")+" from the roster?")) {
+          t.roster = t.roster.filter(function(x){ return x.id!==p.id; });
+          save(); renderRoster(t);
+        }
+      });
+    });
+  }
+}
+
+function addPlayer(){
+  var t = getTeam(curTeamId); if (!t) return;
+  var num = $("newPNum").value.trim(), name = $("newPName").value.trim();
+  if (!num){ $("newPNum").focus(); return; }
+  if (t.roster.some(function(p){ return p.number===num; })){ alert("#"+num+" is already on the roster."); return; }
+  t.roster.push({ id: uid(), number: num, name: name });
+  $("newPNum").value = ""; $("newPName").value = "";
+  save(); renderRoster(t); $("newPNum").focus();
+}
+
+function editPlayer(t, pid){
+  var p = getPlayer(t, pid); if (!p) return;
+  var num = prompt("Jersey number:", p.number);
+  if (num===null) return;
+  num = num.trim(); if (!num) return;
+  if (num!==p.number && t.roster.some(function(x){ return x.number===num; })){ alert("#"+num+" is already on the roster."); return; }
+  var name = prompt("Name:", p.name||"");
+  if (name===null) return;
+  p.number = num; p.name = name.trim();
+  save(); renderRoster(t);
+}
+
+/* ---- Events config ---- */
+function renderEventConfig(t){
+  var box = $("eventChecklist");
+  box.innerHTML = EVENT_CATALOG.map(function(e){
+    var on = t.enabledEvents.indexOf(e.id) >= 0;
+    return '<label class="chk"><input type="checkbox" data-ev="'+e.id+'"'+(on?" checked":"")+' style="width:32px">' +
+      '<span class="dot" style="background:'+e.color+'"></span>' +
+      '<span class="em">'+e.emoji+'</span><span class="lbl">'+esc(e.label)+'</span></label>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("[data-ev]"), function(cb){
+    cb.addEventListener("change", function(){
+      var id = cb.getAttribute("data-ev");
+      if (cb.checked){ if (t.enabledEvents.indexOf(id)<0) t.enabledEvents.push(id); }
+      else { t.enabledEvents = t.enabledEvents.filter(function(x){ return x!==id; }); }
+      save();
+    });
+  });
+}
+
+/* ---- Games ---- */
+function renderGames(t){
+  var list = $("gamesList");
+  var gs = state.games.filter(function(g){ return g.teamId===t.id; })
+    .sort(function(a,b){ return (b.dateISO||"").localeCompare(a.dateISO||""); });
+  if (!gs.length){
+    list.innerHTML = '<div class="empty">No games yet.<br>Start one below when you are at the rink.</div>';
+  } else {
+    list.innerHTML = gs.map(function(g){
+      var sc = gameGoals(g);
+      var st = g.ended ? "Final: "+t.name+" "+sc+" · "+esc(g.opponent) : "● LIVE — "+t.name+" "+sc+" · "+esc(g.opponent);
+      var act = g.ended ? "Report" : "Resume";
+      return '<div class="list-item"><span class="grow"><span class="title">'+esc(g.opponent)+'</span>' +
+        '<div class="sub">'+fmtDate(g.dateISO)+' · '+st+'</div></span>' +
+        '<button class="icon-btn" data-open="'+g.id+'" style="flex:0 0 auto;min-width:0;padding:10px 18px">'+act+'</button>' +
+        '<button class="icon-btn ghost" data-gdel="'+g.id+'" title="Delete">🗑️</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll("[data-open]"), function(b){
+      b.addEventListener("click", function(){ openGame(b.getAttribute("data-open")); });
+    });
+    Array.prototype.forEach.call(list.querySelectorAll("[data-gdel]"), function(b){
+      b.addEventListener("click", function(){
+        var g = getGame(b.getAttribute("data-gdel"));
+        if (g && confirm("Delete this game and all its events?")) {
+          state.games = state.games.filter(function(x){ return x.id!==g.id; });
+          save(); renderGames(t);
+        }
+      });
+    });
+  }
+}
+
+function newGame(){
+  var t = getTeam(curTeamId); if (!t) return;
+  var opp = $("newOpp").value.trim();
+  if (!opp){ $("newOpp").focus(); return; }
+  if (!t.roster.length && !confirm("Roster is empty — tracking by number needs jersey numbers first. Start the game anyway?")) return;
+  var d = $("newGameDate").value || new Date().toISOString().slice(0,10);
+  var g = { id: uid(), teamId: t.id, dateISO: d, opponent: opp, events: [], ended: false };
+  state.games.push(g);
+  $("newOpp").value = "";
+  save(); openGame(g.id);
+}
+
+/* =========================================================
+   LIVE GAME
+   ========================================================= */
+function openGame(id){
+  var g = getGame(id); if (!g) return;
+  curGameId = id; curTeamId = g.teamId; livePeriod = 1; pending = null;
+  if (g.ended){ renderReport(g); show("v-report"); }
+  else { renderLive(g); show("v-live"); }
+}
+
+function enabledDefs(t){
+  // team's enabled events, in catalog order
+  return EVENT_CATALOG.filter(function(e){ return t.enabledEvents.indexOf(e.id)>=0; });
+}
+
+function renderLive(g){
+  var t = getTeam(g.teamId);
+  $("liveTitle").textContent = t.name + " vs " + g.opponent;
+  $("liveScore").textContent = t.name + " " + gameGoals(g);
+  // period segmented
+  Array.prototype.forEach.call($("periodSeg").querySelectorAll("button"), function(b){
+    var p = b.getAttribute("data-p"); if (p!=="OT") p = parseInt(p,10);
+    b.classList.toggle("on", p===livePeriod);
+  });
+  // event buttons
+  var grid = $("evGrid");
+  var defs = enabledDefs(t);
+  if (!defs.length){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">No events enabled.<br>Go to the Events tab to choose what this team tracks.</div>';
+  } else {
+    grid.innerHTML = defs.map(function(e){
+      return '<button class="evbtn" data-ev="'+e.id+'" style="border-color:'+e.color+'">' +
+        '<span class="em">'+e.emoji+'</span><span>'+esc(e.label)+'</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(grid.querySelectorAll("[data-ev]"), function(b){
+      b.addEventListener("click", function(){ startEventPick(g, b.getAttribute("data-ev")); });
+    });
+  }
+  renderLiveTotals(t, g);
+  renderLiveLog(t, g);
+}
+
+function recordEvent(g, type, playerId){
+  g.events.push({ id: uid(), ts: Date.now(), period: livePeriod, type: type, playerId: playerId });
+  save();
+  renderLive(g);
+}
+
+/* ---- Event -> player picker flow ---- */
+function startEventPick(g, type){
+  var t = getTeam(g.teamId);
+  var ros = sortedRoster(t);
+  if (!ros.length){ alert("Add the roster first (jersey numbers) — the Events tab and Roster tab are under the team."); return; }
+  pending = { type: type, gameId: g.id };
+  openPicker(evDef(type).emoji+" "+evDef(type).label, "tap the jersey number", ros, false);
+}
+
+function openPicker(title, sub, ros, showSkip){
+  $("pickerTitle").textContent = title;
+  $("pickerSub").textContent = sub;
+  $("pickerSkip").classList.toggle("hidden", !showSkip);
+  var grid = $("pickerGrid");
+  grid.innerHTML = ros.map(function(p){
+    return '<button class="pbtn" data-p="'+p.id+'"><span class="num">'+esc(p.number)+'</span>' +
+      '<span class="nm">'+esc(p.name||"")+'</span></button>';
+  }).join("");
+  Array.prototype.forEach.call(grid.querySelectorAll("[data-p]"), function(b){
+    b.addEventListener("click", function(){ pickerPick(b.getAttribute("data-p")); });
+  });
+  $("picker").classList.remove("hidden");
+}
+function closePicker(){ $("picker").classList.add("hidden"); pending = null; }
+
+function pickerPick(playerId){
+  if (!pending) return;
+  var g = getGame(pending.gameId); if (!g){ closePicker(); return; }
+  var t = getTeam(g.teamId);
+  if (pending.type==="goal" && !pending.scorerId){
+    // Step 1: scorer picked — record the goal, then ask for optional assist.
+    pending.scorerId = playerId;
+    recordEventSilent(g, "goal", playerId);
+    pending.type = "assist"; // next pick records an assist, not another goal
+    openPicker("🥅 Goal by "+playerLabel(t, playerId), "assist by? (optional)", sortedRoster(t), true);
+  } else {
+    // Plain event, or assist pick after a goal.
+    recordEventSilent(g, pending.type, playerId);
+    closePicker();
+    renderLive(g);
+  }
+}
+function recordEventSilent(g, type, playerId){
+  g.events.push({ id: uid(), ts: Date.now(), period: livePeriod, type: type, playerId: playerId });
+  save();
+}
+
+/* ---- Undo ---- */
+function undoLast(){
+  var g = getGame(curGameId); if (!g || !g.events.length) return;
+  var e = g.events[g.events.length-1];
+  var t = getTeam(g.teamId);
+  var d = evDef(e.type);
+  if (confirm("Undo last event: "+(d?d.label:e.type)+" — "+playerLabel(t, e.playerId)+"?")){
+    g.events.pop();
+    save(); renderLive(g);
+  }
+}
+
+/* ---- Live totals mini-table ---- */
+function countBy(g, playerId, type){
+  var n = 0;
+  g.events.forEach(function(e){ if (e.playerId===playerId && e.type===type) n++; });
+  return n;
+}
+function reportTypes(t, g){
+  // team's enabled events, plus any other types actually recorded (e.g. assist via goal flow)
+  var seen = {}, order = [];
+  t.enabledEvents.forEach(function(id){ if (!seen[id] && evDef(id)){ seen[id]=1; order.push(id); } });
+  g.events.forEach(function(e){ if (!seen[e.type] && evDef(e.type)){ seen[e.type]=1; order.push(e.type); } });
+  return order.map(evDef).filter(Boolean);
+}
+function totalsTableHTML(t, g, types){
+  var ros = sortedRoster(t);
+  var head = '<tr><th class="left">Player</th>' + types.map(function(e){ return "<th>"+e.emoji+"<br>"+esc(e.label)+"</th>"; }).join("") + "</tr>";
+  var rows = ros.map(function(p){
+    var cells = types.map(function(e){
+      var c = countBy(g, p.id, e.id);
+      return "<td>"+(c||"")+"</td>";
+    }).join("");
+    return '<tr><td class="left"><b>#'+esc(p.number)+'</b> '+esc(p.name||"")+'</td>'+cells+'</tr>';
+  }).join("");
+  var tot = types.map(function(e){
+    var n = 0; g.events.forEach(function(ev){ if (ev.type===e.id) n++; });
+    return "<td><b>"+(n||"")+"</b></td>";
+  }).join("");
+  return "<table>"+head+rows+'<tr><td class="left"><b>TEAM</b></td>'+tot+"</tr></table>";
+}
+function renderLiveTotals(t, g){
+  $("liveTotals").innerHTML = totalsTableHTML(t, g, enabledDefs(t));
+}
+
+/* ---- Live log ---- */
+function renderLiveLog(t, g){
+  var box = $("liveLog");
+  var evs = g.events.slice().reverse();
+  if (!evs.length){ box.innerHTML = '<div class="empty">No events yet.<br>Tap an event above, then the jersey number.</div>'; return; }
+  box.innerHTML = evs.map(function(e){
+    var d = evDef(e.type) || {label:e.type, emoji:"•"};
+    var ptxt = e.type==="goal" && e.assistId ? playerLabel(t, e.playerId)+" (A: "+playerLabel(t, e.assistId)+")"
+                                            : playerLabel(t, e.playerId);
+    return '<div class="logrow"><span>'+d.emoji+'</span>' +
+      '<span class="grow"><b>'+esc(d.label)+'</b> — '+esc(ptxt) +
+      '<div class="muted" style="font-size:13px">P'+e.period+' · '+fmtTime(e.ts)+'</div></span>' +
+      '<button class="del ghost" data-evd="'+e.id+'" title="Delete">✕</button></div>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("[data-evd]"), function(b){
+    b.addEventListener("click", function(){
+      var id = b.getAttribute("data-evd");
+      g.events = g.events.filter(function(x){ return x.id!==id; });
+      save(); renderLive(g);
+    });
+  });
+}
+
+/* =========================================================
+   GAME REPORT
+   ========================================================= */
+function renderReport(g){
+  var t = getTeam(g.teamId);
+  curGameId = g.id;
+  $("reportTitle").textContent = t.name + " vs " + g.opponent;
+  $("reportScore").textContent = "Final: " + t.name + " " + gameGoals(g) + " · " + g.opponent;
+  $("reportTable").innerHTML = totalsTableHTML(t, g, reportTypes(t, g));
+}
+
+function summaryText(g){
+  var t = getTeam(g.teamId);
+  var types = reportTypes(t, g);
+  var lines = [];
+  lines.push(t.name+" vs "+g.opponent+" — "+fmtDate(g.dateISO));
+  lines.push("Final: "+t.name+" "+gameGoals(g)+", "+g.opponent);
+  lines.push("");
+  sortedRoster(t).forEach(function(p){
+    var parts = [];
+    types.forEach(function(e){
+      var c = countBy(g, p.id, e.id);
+      if (c) parts.push(e.label+" "+c);
+    });
+    if (parts.length) lines.push("#"+p.number+" "+(p.name||"")+" — "+parts.join(", "));
+  });
+  lines.push("");
+  var tot = types.map(function(e){
+    var n = 0; g.events.forEach(function(ev){ if (ev.type===e.id) n++; });
+    return n ? e.label+" "+n : null;
+  }).filter(Boolean);
+  if (tot.length) lines.push("Team totals: "+tot.join(", "));
+  return lines.join("\n");
+}
+
+function csvText(g){
+  var t = getTeam(g.teamId);
+  var q = function(s){ return '"'+String(s==null?"":s).replace(/"/g,'""')+'"'; };
+  var out = [];
+  out.push("Events — "+t.name+" vs "+g.opponent+" ("+g.dateISO+")");
+  out.push(["Time","Period","Event","Player #","Player name"].join(","));
+  g.events.forEach(function(e){
+    var d = evDef(e.type) || {label:e.type};
+    var p = getPlayer(t, e.playerId) || {};
+    out.push([q(fmtTime(e.ts)), q("P"+e.period), q(d.label), q(p.number||""), q(p.name||"")].join(","));
+  });
+  out.push("");
+  out.push("Per-player totals");
+  var types = reportTypes(t, g);
+  out.push(["Player #","Player name"].concat(types.map(function(e){ return q(e.label); })).join(","));
+  sortedRoster(t).forEach(function(p){
+    out.push([q(p.number), q(p.name||"")].concat(types.map(function(e){ return countBy(g, p.id, e.id); })).join(","));
+  });
+  return out.join("\r\n");
+}
+
+function doShare(){
+  var g = getGame(curGameId); if (!g) return;
+  var text = summaryText(g);
+  if (navigator.share){
+    navigator.share({ title: "Game stats", text: text }).catch(function(){ /* user cancelled */ });
+  } else {
+    copyText(text, "Sharing is not available in this browser — use Copy instead.");
+  }
+}
+function copyText(text, fallbackMsg){
+  var done = function(){ alert("Summary copied — paste it to the coaches."); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, function(){ legacyCopy(text, done, fallbackMsg); });
+  } else legacyCopy(text, done, fallbackMsg);
+}
+function legacyCopy(text, done, fallbackMsg){
+  var ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); }
+  catch(e){ if (fallbackMsg) alert(fallbackMsg); }
+  document.body.removeChild(ta);
+}
+function doCSV(){
+  var g = getGame(curGameId); if (!g) return;
+  var t = getTeam(g.teamId);
+  var blob = new Blob([csvText(g)], {type:"text/csv"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "stats-"+t.name.replace(/\s+/g,"-")+"-vs-"+g.opponent.replace(/\s+/g,"-")+"-"+g.dateISO+".csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* =========================================================
+   WIRING
+   ========================================================= */
+function init(){
+  load();
+  $("addTeamBtn").addEventListener("click", addTeam);
+  $("newTeamName").addEventListener("keydown", function(e){ if (e.key==="Enter") addTeam(); });
+  $("teamBack").addEventListener("click", function(){ curTeamId=null; renderTeams(); show("v-teams"); });
+  $("renameTeamBtn").addEventListener("click", function(){
+    var t = getTeam(curTeamId); if (!t) return;
+    var n = prompt("Team name:", t.name);
+    if (n && n.trim()){ t.name = n.trim(); save(); renderTeam(); }
+  });
+  $("tabRoster").addEventListener("click", function(){ teamTab="roster"; renderTeam(); });
+  $("tabEvents").addEventListener("click", function(){ teamTab="events"; renderTeam(); });
+  $("tabGames").addEventListener("click", function(){ teamTab="games"; renderTeam(); });
+  $("addPlayerBtn").addEventListener("click", addPlayer);
+  $("newPName").addEventListener("keydown", function(e){ if (e.key==="Enter") addPlayer(); });
+  $("newGameBtn").addEventListener("click", newGame);
+  $("newOpp").addEventListener("keydown", function(e){ if (e.key==="Enter") newGame(); });
+  $("liveBack").addEventListener("click", function(){ renderTeam(); show("v-team"); });
+  $("reportBack").addEventListener("click", function(){ teamTab="games"; renderTeam(); show("v-team"); });
+  Array.prototype.forEach.call($("periodSeg").querySelectorAll("button"), function(b){
+    b.addEventListener("click", function(){
+      var p = b.getAttribute("data-p"); livePeriod = (p==="OT") ? "OT" : parseInt(p,10);
+      var g = getGame(curGameId); if (g) renderLive(g);
+    });
+  });
+  $("undoBtn").addEventListener("click", undoLast);
+  $("endGameBtn").addEventListener("click", function(){
+    var g = getGame(curGameId); if (!g) return;
+    if (confirm("End the game and open the report?")){
+      g.ended = true; save();
+      renderReport(g); show("v-report");
+    }
+  });
+  $("pickerCancel").addEventListener("click", closePicker);
+  $("pickerSkip").addEventListener("click", function(){
+    // Skip assist: goal already recorded in pickerPick; just close.
+    closePicker();
+    var g = getGame(curGameId); if (g && !g.ended) renderLive(g);
+  });
+  $("shareBtn").addEventListener("click", doShare);
+  $("copyBtn").addEventListener("click", function(){
+    var g = getGame(curGameId); if (g) copyText(summaryText(g));
+  });
+  $("csvBtn").addEventListener("click", doCSV);
+  renderTeams();
+  show("v-teams");
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
